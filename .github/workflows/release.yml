@@ -37,7 +37,7 @@ jobs:
           name="ais-${GITHUB_REF_NAME}-${{ matrix.target }}"
           mkdir "$name"
           cp "target/${{ matrix.target }}/release/ais" "$name/"
-          cp README.md LICENSE "$name/"
+          cp README.md README.en.md LICENSE "$name/"
           tar czf "$name.tar.gz" "$name"
       - uses: actions/upload-artifact@v4
         with:
