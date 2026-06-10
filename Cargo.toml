@@ -14,7 +14,8 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-ureq = "3"
+# AiSEG2 は LAN 内の平文 HTTP のみのため TLS 系の default features を外す
+ureq = { version = "3", default-features = false }
 
 [profile.release]
 lto = true

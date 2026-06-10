@@ -179,6 +179,10 @@ casa / cron / n8n / dashboard
 - 積算系（日次）: `ais energy` として実装済み。月次はエンドポイント未確認のため対象外。
 - `ais scene`: 制御エンドポイントの公開情報がなく、実機キャプチャ待ち。
 
+### Phase 3 — 配布
+- `v*` タグで GitHub Releases にクロスビルドバイナリ（Linux/macOS × x86_64/arm64、TLS 非リンク）を自動公開。
+- casa から `PATH` 上のバイナリとして叩く運用の前提を整える。
+
 ---
 
 ## やらないこと
