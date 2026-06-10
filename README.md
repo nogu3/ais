@@ -1,5 +1,10 @@
 # ais
 
+[![CI](https://github.com/nogu3/ais/actions/workflows/ci.yml/badge.svg)](https://github.com/nogu3/ais/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+English: [README.en.md](README.en.md)
+
 Panasonic **AiSEG2** 専用 CLI。AiSEG2 の Web UI を HTTP（Digest 認証）で叩き、電力データの読み取りと、AiSEG2 経由でしか操作できない機器（リンクプラス照明等）の制御を行う。
 
 - stdout には**純粋な構造化 JSON のみ**を出力する（`jq` / LLM Function Calling がそのまま食える）
