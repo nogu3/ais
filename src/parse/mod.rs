@@ -4,6 +4,7 @@
 
 pub mod circuits;
 pub mod devices;
+pub mod energy;
 pub mod generic;
 pub mod power;
 
