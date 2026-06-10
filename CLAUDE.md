@@ -177,6 +177,10 @@ casa / cron / n8n / dashboard
 ### Phase 2 — 拡張
 - `ais scene`、積算系（日/月）など、必要が出たら追加。
 
+### Phase 3 — 配布
+- `v*` タグで GitHub Releases にクロスビルドバイナリ（Linux/macOS × x86_64/arm64、TLS 非リンク）を自動公開。
+- casa から `PATH` 上のバイナリとして叩く運用の前提を整える。
+
 ---
 
 ## やらないこと
