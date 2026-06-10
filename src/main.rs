@@ -10,7 +10,7 @@ use tracing_subscriber::EnvFilter;
 use ais::control::{self, CheckStatus};
 use ais::error::{AisError, ErrorKind, Result};
 use ais::fetch::Client;
-use ais::parse::{circuits, devices, generic, power};
+use ais::parse::{circuits, devices, energy, generic, power};
 
 /// Panasonic AiSEG2 専用 CLI。stdout には構造化 JSON のみを出力する。
 #[derive(Parser)]
@@ -46,6 +46,16 @@ enum Command {
     Fetch {
         /// ページパス（例: /page/graph/51111）
         page: String,
+    },
+    /// 積算電力量（発電 / 消費 / 買電 / 売電 kWh）を JSON で出力する
+    Energy {
+        /// 対象日（YYYY-MM-DD）。省略時は本日。※日付指定は実機未検証
+        #[arg(long, value_parser = parse_date)]
+        date: Option<(u32, u32, u32)>,
+
+        /// 回路別の積算 kWh も含める（回路数ぶんリクエストが増える）
+        #[arg(long)]
+        circuits: bool,
     },
     /// 機器コントロール一覧（制御可能機器とその状態）を JSON で出力する
     Devices,
@@ -98,6 +108,7 @@ fn run(client: &Client, command: &Command) -> Result<String> {
         Command::Power => to_json(&cmd_power(client)?),
         Command::Circuits => to_json(&cmd_circuits(client)?),
         Command::Fetch { page } => to_json(&cmd_fetch(client, page)?),
+        Command::Energy { date, circuits } => to_json(&cmd_energy(client, *date, *circuits)?),
         Command::Devices => to_json(&cmd_devices(client)?),
         Command::On { device } => to_json(&cmd_control(client, device, true)?),
         Command::Off { device } => to_json(&cmd_control(client, device, false)?),
@@ -180,6 +191,92 @@ fn cmd_fetch(client: &Client, page: &str) -> Result<generic::PageValues> {
     };
     let html = client.get(&path)?;
     Ok(generic::extract_page_values(&path, &html))
+}
+
+/// `--date` の YYYY-MM-DD を (年, 月, 日) にパースする（clap が exit 2 で扱う）。
+fn parse_date(s: &str) -> std::result::Result<(u32, u32, u32), String> {
+    let parts: Vec<&str> = s.split('-').collect();
+    let err = || format!("invalid date '{s}' (expected YYYY-MM-DD)");
+    if parts.len() != 3 {
+        return Err(err());
+    }
+    let y: u32 = parts[0].parse().map_err(|_| err())?;
+    let m: u32 = parts[1].parse().map_err(|_| err())?;
+    let d: u32 = parts[2].parse().map_err(|_| err())?;
+    if !(2000..=2099).contains(&y) || !(1..=12).contains(&m) || !(1..=31).contains(&d) {
+        return Err(err());
+    }
+    Ok((y, m, d))
+}
+
+#[derive(Serialize)]
+struct EnergyReport {
+    /// 対象日（YYYY-MM-DD）。省略時（本日）は出さない
+    #[serde(skip_serializing_if = "Option::is_none")]
+    date: Option<String>,
+    generation_kwh: f64,
+    usage_kwh: f64,
+    buy_kwh: f64,
+    sell_kwh: f64,
+    /// --circuits 指定時のみ
+    #[serde(skip_serializing_if = "Option::is_none")]
+    circuits: Option<Vec<CircuitEnergy>>,
+}
+
+#[derive(Serialize)]
+struct CircuitEnergy {
+    id: String,
+    name: String,
+    kwh: f64,
+}
+
+fn cmd_energy(
+    client: &Client,
+    date: Option<(u32, u32, u32)>,
+    with_circuits: bool,
+) -> Result<EnergyReport> {
+    let fetch_kwh = |page_id: u32| -> Result<f64> {
+        let html = client.get(&energy::graph_path(page_id, None, date))?;
+        energy::parse_val_kwh(&html)
+    };
+
+    let generation_kwh = fetch_kwh(energy::GRAPH_GENERATION_DAY)?;
+    let usage_kwh = fetch_kwh(energy::GRAPH_USAGE_DAY)?;
+    let buy_kwh = fetch_kwh(energy::GRAPH_BUY_DAY)?;
+    let sell_kwh = fetch_kwh(energy::GRAPH_SELL_DAY)?;
+
+    let circuits = if with_circuits {
+        let catalog_html = client.get(energy::CIRCUIT_CATALOG_PATH)?;
+        let catalog = energy::parse_circuit_catalog(&catalog_html)?;
+        debug!(count = catalog.len(), "found measured circuits in catalog");
+
+        let mut rows = Vec::with_capacity(catalog.len());
+        for circuit in catalog {
+            let html = client.get(&energy::graph_path(
+                energy::GRAPH_CIRCUIT_DAY,
+                Some(&circuit.id),
+                date,
+            ))?;
+            let kwh = energy::parse_val_kwh(&html)?;
+            rows.push(CircuitEnergy {
+                id: circuit.id,
+                name: circuit.name,
+                kwh,
+            });
+        }
+        Some(rows)
+    } else {
+        None
+    };
+
+    Ok(EnergyReport {
+        date: date.map(|(y, m, d)| format!("{y:04}-{m:02}-{d:02}")),
+        generation_kwh,
+        usage_kwh,
+        buy_kwh,
+        sell_kwh,
+        circuits,
+    })
 }
 
 /// 機器ページの 1 ページあたりの最大表示数（これに満たなければ最終ページ）。

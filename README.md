@@ -54,6 +54,17 @@ ais devices
 ais on リビング照明
 ais off 1073741825:0x029101
 
+# 積算電力量（本日の発電 / 消費 / 買電 / 売電 kWh）
+ais energy
+# {"generation_kwh":8.4,"usage_kwh":18.2,"buy_kwh":10.9,"sell_kwh":1.1}
+
+# 回路別の本日 kWh も含める（回路数ぶんリクエストが増える）
+ais energy --circuits
+# {...,"circuits":[{"id":"30","name":"リビング エアコン","kwh":3.0},...]}
+
+# 日付指定（※実機未検証・公開情報からの推定）
+ais energy --date 2026-06-09
+
 # 読み用エスケープハッチ: 任意ページの id 付き要素テキストを抽出
 ais fetch /page/graph/51111
 # {"path":"/page/graph/51111","values":{"val_kwh":"12.3"}}
@@ -75,6 +86,19 @@ ais circuits | jq '[.[] | select(.kind=="branch")] | max_by(.power_w)'
 | `sources[]` | array | 発電ソース内訳（`name`, `power_w`） |
 
 **`ais circuits`** — 配列。先頭が主幹（`kind: "main"`）、以降が分岐回路（`kind: "branch"`、消費電力降順）。`power_w` が `null` の回路は計測なし。AiSEG2 の表示仕様上、0W の回路以降は省略されることがある。
+
+**`ais energy`**
+
+| フィールド | 型 | 説明 |
+|---|---|---|
+| `date` | string | 対象日（`--date` 指定時のみ。省略時は本日分で、フィールド自体が出ない） |
+| `generation_kwh` | number | 発電量 [kWh] |
+| `usage_kwh` | number | 消費量 [kWh] |
+| `buy_kwh` | number | 買電量 [kWh] |
+| `sell_kwh` | number | 売電量 [kWh] |
+| `circuits[]` | array | `--circuits` 指定時のみ。回路別積算（`id`, `name`, `kwh`） |
+
+> 本日分の総計・回路別は公開実装 2 件で検証済み。**`--date` の日付指定パラメータは公開情報からの推定で実機未検証**（動かない場合は exit 6 になる）。月次積算はエンドポイント未確認のため未対応。
 
 **`ais devices`** — 配列。`id`（`<nodeId>:<eoj>`）、`name`、`kind`（AiSEG2 のパネル種別名）、`state`（`"on"` / `"off"`）、`node_id`、`eoj`、`type`、`link`（制御ページ ID）。
 
@@ -119,6 +143,7 @@ src/
 ├── parse/         # 解釈層: ファーム依存の壊れやすい契約をここに閉じ込める
 │   ├── power.rs     # POST /data/electricflow/111/update (JSON)
 │   ├── circuits.rs  # GET /page/electricflow/1113?id=N (HTML)
+│   ├── energy.rs    # GET /page/graph/5x111・584・回路カタログ 734 (HTML)
 │   ├── devices.rs   # 機器コントロール一覧の走査 (HTML)
 │   └── generic.rs   # ais fetch 用の汎用抽出
 └── control.rs     # 解釈層: 制御ペイロード生成・change/check レスポンス解釈
@@ -138,7 +163,7 @@ RUST_LOG=debug cargo run -- power   # 診断ログは stderr へ
 ### 実機 E2E 手順（CI には載せない）
 
 1. AiSEG2 と同一 LAN のマシンで `AISEG_HOST` / `AISEG_PASS` を設定する。
-2. 読み: `ais power` → `ais circuits` → `ais devices` の順に実行し、JSON が返ること・値が AiSEG2 の画面表示と一致することを確認する。
+2. 読み: `ais power` → `ais circuits` → `ais energy` → `ais energy --circuits` → `ais devices` の順に実行し、JSON が返ること・値が AiSEG2 の画面表示と一致することを確認する。`ais energy --date <昨日>` も実行し、日付指定パラメータが効くか検証する（結果を README に反映）。
 3. 制御: `ais devices` で対象照明の `id` を確認 → `ais on <id>` → 実灯確認 → `ais off <id>`。
 4. exit code 6 が出た場合はファームの構造が想定とずれている。`RUST_LOG=debug` で対象ページを特定し、`ais fetch <page>` で実構造を確認する。
 

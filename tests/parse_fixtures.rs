@@ -1,7 +1,7 @@
 //! サニタイズ済みフィクスチャに対する解釈層の統合テスト。
 //! CI に実機は不要。セレクタがずれた場合はここで検知する。
 
-use ais::parse::{circuits, devices, generic, power};
+use ais::parse::{circuits, devices, energy, generic, power};
 
 #[test]
 fn power_buying() {
@@ -131,6 +131,31 @@ fn token_fallback_to_setting_value() {
 fn token_fallback_to_control_attr() {
     let html = r#"<div id="main"><div class="control" token="55555"></div></div>"#;
     assert_eq!(devices::parse_token(html).as_deref(), Some("55555"));
+}
+
+#[test]
+fn energy_graph_val_kwh() {
+    let html = include_str!("fixtures/graph_val_kwh.html");
+    assert_eq!(energy::parse_val_kwh(html).unwrap(), 12.3);
+}
+
+#[test]
+fn energy_circuit_catalog() {
+    let html = include_str!("fixtures/circuit_catalog_734.html");
+    let catalog = energy::parse_circuit_catalog(html).unwrap();
+
+    // strBtnType == "1" のみ（"使用しない" は除外）、名前なしはフォールバック
+    assert_eq!(catalog.len(), 3);
+    assert_eq!(catalog[0].id, "30");
+    assert_eq!(catalog[0].name, "リビング エアコン");
+    assert_eq!(catalog[1].name, "IH クッキングヒーター");
+    assert_eq!(catalog[2].name, "Circuit 32");
+}
+
+#[test]
+fn energy_catalog_selector_mismatch() {
+    let err = energy::parse_circuit_catalog("<html><body></body></html>").unwrap_err();
+    assert_eq!(err.kind, ais::error::ErrorKind::ParseFailed);
 }
 
 #[test]
