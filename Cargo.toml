@@ -5,6 +5,9 @@ edition = "2021"
 description = "Panasonic AiSEG2 専用 CLI — 電力データの読み取りと機器コントロール"
 license = "MIT"
 repository = "https://github.com/nogu3/ais"
+keywords = ["aiseg2", "hems", "smart-home", "cli", "panasonic"]
+categories = ["command-line-utilities"]
+rust-version = "1.85"
 
 [dependencies]
 clap = { version = "4", features = ["derive", "env"] }
