@@ -1,0 +1,20 @@
+{
+  "g_capacity": "0.5",
+  "u_capacity": "1.2",
+  "lo_buy_sell": 0,
+  "g_d_1_title": "太陽光",
+  "g_d_1_capacity": 512,
+  "u_d_1_title": "エアコン",
+  "u_d_1_capacity": 650,
+  "best1": 1,
+  "u_d_2_title": "冷蔵庫",
+  "u_d_2_capacity": 120,
+  "best2": 1,
+  "u_d_3_title": "-",
+  "u_d_3_capacity": 0,
+  "best3": 0,
+  "connEv": 0,
+  "connSb": 0,
+  "connFc": 0,
+  "percent": 0
+}
