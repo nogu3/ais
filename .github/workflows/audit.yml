@@ -7,6 +7,7 @@ on:
       - "**/Cargo.lock"
   schedule:
     - cron: "30 1 * * 1" # 毎週月曜
+  workflow_dispatch:
 
 permissions:
   contents: read
