@@ -1,0 +1,52 @@
+version: '3'
+
+tasks:
+  default:
+    deps: [check]
+
+  build:
+    desc: デバッグビルド
+    cmds:
+      - cargo build
+
+  release:
+    desc: リリースビルド（配布物と同じ --locked）
+    cmds:
+      - cargo build --release --locked
+
+  test:
+    desc: フィクスチャに対する解釈層テスト（実機不要）
+    cmds:
+      - cargo test
+
+  fmt:
+    desc: フォーマット適用
+    cmds:
+      - cargo fmt
+
+  lint:
+    desc: fmt チェック + clippy（CI と同じ基準）
+    cmds:
+      - cargo fmt --check
+      - cargo clippy --all-targets -- -D warnings
+
+  check:
+    desc: lint + test（push 前の確認はこれ）
+    cmds:
+      - task: lint
+      - task: test
+
+  e2e:
+    desc: モック AiSEG2 に対する E2E スモーク（Digest 認証込み・実機不要）
+    cmds:
+      - ./tools/e2e.sh
+
+  run:
+    desc: 'RUST_LOG=debug で実行（例: task run -- power）'
+    cmds:
+      - RUST_LOG=debug cargo run -- {{.CLI_ARGS}}
+
+  clean:
+    desc: ビルド成果物の削除
+    cmds:
+      - cargo clean

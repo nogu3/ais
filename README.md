@@ -137,12 +137,26 @@ src/
 
 ## 開発
 
+[Task](https://taskfile.dev) を使う場合:
+
+```bash
+task build      # デバッグビルド
+task test       # フィクスチャに対する解釈層テスト（実機不要）
+task check      # fmt チェック + clippy + テスト（push 前はこれ）
+task e2e        # モック AiSEG2 への E2E スモーク（Digest 認証込み・実機不要）
+task run -- power   # RUST_LOG=debug で実行
+```
+
+素の cargo でも同じことができる:
+
 ```bash
 cargo build
-cargo test                      # フィクスチャに対する解釈層テスト（実機不要）
+cargo test
 cargo clippy -- -D warnings
 RUST_LOG=debug cargo run -- power   # 診断ログは stderr へ
 ```
+
+`task e2e` は `tools/mock-aiseg2.py`（Digest 認証付きモック AiSEG2、フィクスチャを配信）を 127.0.0.1:18080 に立てて、全サブコマンドと exit code 規約を検証する。
 
 ### リリース
 
