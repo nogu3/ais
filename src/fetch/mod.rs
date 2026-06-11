@@ -18,13 +18,20 @@ pub struct Client {
 struct RawResponse {
     status: u16,
     www_authenticate: Option<String>,
+    location: Option<String>,
     body: String,
 }
 
+/// リダイレクト追従の上限（ループ防止の安全弁）。
+const MAX_REDIRECTS: u32 = 5;
+
 impl Client {
     pub fn new(host: &str, user: &str, pass: &str, timeout_secs: u64) -> Self {
+        // リダイレクトは自前で追従する。ureq に任せると Digest の uri が
+        // リダイレクト先とずれて 401 になる（例: トップページ `/` → `/index.cgi`）。
         let config = ureq::Agent::config_builder()
             .http_status_as_error(false)
+            .max_redirects(0)
             .timeout_global(Some(Duration::from_secs(timeout_secs)))
             .build();
         Self {
@@ -46,9 +53,29 @@ impl Client {
     }
 
     fn request(&self, method: &str, path_query: &str, body: Option<&str>) -> Result<String> {
+        let mut path = path_query.to_string();
+        for _ in 0..MAX_REDIRECTS {
+            let res = self.request_once(method, &path, body)?;
+            // GET のみリダイレクトを追従し、リダイレクト先で Digest をやり直す
+            if method == "GET" && matches!(res.status, 301 | 302 | 303 | 307 | 308) {
+                if let Some(next) = res.location.as_deref().map(normalize_location) {
+                    debug!(from = %path, to = %next, "following redirect");
+                    path = next;
+                    continue;
+                }
+            }
+            return ok_or_status(res, &path);
+        }
+        Err(AisError::new(
+            ErrorKind::HttpStatus,
+            format!("too many redirects for {path_query}"),
+        ))
+    }
+
+    fn request_once(&self, method: &str, path_query: &str, body: Option<&str>) -> Result<RawResponse> {
         let first = self.send(method, path_query, body, None)?;
         if first.status != 401 {
-            return ok_or_status(first, path_query);
+            return Ok(first);
         }
 
         // 401 → Digest チャレンジに応答して 1 回だけ再試行
@@ -81,7 +108,7 @@ impl Client {
                 format!("digest authentication rejected for {path_query}"),
             ));
         }
-        ok_or_status(second, path_query)
+        Ok(second)
     }
 
     fn send(
@@ -122,6 +149,11 @@ impl Client {
             .get("www-authenticate")
             .and_then(|v| v.to_str().ok())
             .map(str::to_string);
+        let location = response
+            .headers()
+            .get("location")
+            .and_then(|v| v.to_str().ok())
+            .map(str::to_string);
         let body = response
             .body_mut()
             .read_to_string()
@@ -131,6 +163,7 @@ impl Client {
         Ok(RawResponse {
             status,
             www_authenticate,
+            location,
             body,
         })
     }
@@ -144,6 +177,21 @@ fn ok_or_status(res: RawResponse, path_query: &str) -> Result<String> {
             ErrorKind::HttpStatus,
             format!("unexpected HTTP {} for {path_query}", res.status),
         ))
+    }
+}
+
+/// Location ヘッダーをホスト相対パスに正規化する（絶対 URL はパス以降を取り出す）。
+fn normalize_location(loc: &str) -> String {
+    if let Some(rest) = loc
+        .strip_prefix("http://")
+        .or_else(|| loc.strip_prefix("https://"))
+    {
+        match rest.find('/') {
+            Some(i) => rest[i..].to_string(),
+            None => "/".to_string(),
+        }
+    } else {
+        loc.to_string()
     }
 }
 
