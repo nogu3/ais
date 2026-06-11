@@ -72,7 +72,12 @@ impl Client {
         ))
     }
 
-    fn request_once(&self, method: &str, path_query: &str, body: Option<&str>) -> Result<RawResponse> {
+    fn request_once(
+        &self,
+        method: &str,
+        path_query: &str,
+        body: Option<&str>,
+    ) -> Result<RawResponse> {
         let first = self.send(method, path_query, body, None)?;
         if first.status != 401 {
             return Ok(first);
