@@ -19,7 +19,9 @@ Intended to be invoked as a binary on `PATH` by callers such as cron, n8n, or da
 
 AiSEG2 production ends in September 2026 with no further firmware updates, so the HTML / control-endpoint contract is treated as **frozen**.
 
-> **Note**: The current interpretation layer was built by cross-checking multiple public reverse-engineering implementations and has **not yet been verified against a real device**. Once verified, the target firmware version will be recorded here and frozen. Fixtures under `tests/fixtures/` are likewise sanitized reconstructions from public sources.
+**Verified firmware: `Ver.2.97M-03`**. All subcommands (reads, lighting control, exit-code contract) have been verified against a real device running this version, and the interpretation-layer contract is frozen against it.
+
+> Fixtures under `tests/fixtures/` are sanitized reconstructions from public sources. Replacing them with sanitized HTML captured from a real device is recommended.
 
 ## Install
 
@@ -63,7 +65,7 @@ ais circuits
 # Daily energy totals (generation / usage / purchase / sale, kWh)
 ais energy
 ais energy --circuits          # include per-circuit kWh
-ais energy --date 2026-06-09   # specific date (unverified on real hardware)
+ais energy --date 2026-06-09   # specific date
 
 # Controllable devices (AiSEG2 is the source of truth)
 ais devices
