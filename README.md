@@ -53,9 +53,9 @@ cargo install --path .
 export AISEG_HOST=192.0.2.16
 export AISEG_PASS=********
 
-# 瞬時電力（太陽光発電 / 買電 / 電気使用量）
+# 瞬時電力（太陽光発電 / 買電 / 売電 / 電気使用量）
 ais power
-# {"generation_kw":0.5,"usage_kw":1.2,"buy_kw":0.7,"grid_direction":"buy","sources":[{"name":"太陽光","power_w":512}]}
+# {"generation_kw":0.5,"usage_kw":1.2,"buy_kw":0.7,"sell_kw":0.0,"grid_direction":"buy","sources":[{"name":"太陽光","power_w":512}]}
 
 # 分電盤（主幹 + 分岐回路、瞬時値・消費の大きい順）
 ais circuits
@@ -96,7 +96,8 @@ ais circuits | jq '[.[] | select(.kind=="branch")] | max_by(.power_w)'
 |---|---|---|
 | `generation_kw` | number | 総発電電力 [kW] |
 | `usage_kw` | number | 総使用電力 [kW] |
-| `buy_kw` | number | 買電電力 [kW]。売電中は `0`（売電値の出力方法は保留事項） |
+| `buy_kw` | number | 買電電力 [kW]。売電中は `0` |
+| `sell_kw` | number | 売電電力 [kW]。買電中は `0`。AiSEG2 は売電電力そのものを返さないので `\|発電 - 使用\|` で求めている |
 | `grid_direction` | string | `"buy"` \| `"sell"` |
 | `sources[]` | array | 発電ソース内訳（`name`, `power_w`） |
 
